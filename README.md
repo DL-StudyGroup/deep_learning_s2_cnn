@@ -13,7 +13,10 @@ CNN 위주인 DeepLearning 그룹스터디
 	5. 이미지 인페인팅
 - [**스터디진도 및 스케줄 >> go**](/SCHEDULE.md)
 - **자료:**
-	- pytorch강좌: [莫烦python](https://morvanzhou.github.io/tutorials/machine-learning/torch/)
+	- **[莫烦python](https://morvanzhou.github.io/tutorials/machine-learning/torch/)**
+		pytorch教程, matplotlib, numpy, tensorflow, python等等
+	- **[http://pytorchchina.com/](http://pytorchchina.com/)**
+		pytorch China, 教程, 路线图等等
 	- ...
 	
 	*(도움되는 자료를 여기에 추가 해주세요..)*
