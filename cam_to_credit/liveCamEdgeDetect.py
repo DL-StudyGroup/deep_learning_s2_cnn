@@ -30,11 +30,11 @@ def add_second_image(origin, sec_image):
 
 def put4ChannelImageOn4ChannelImage(back, fore, x, y):
     rows, cols, channels = fore.shape
-    trans_indices = fore[..., 3] != 0 # Where not transparent
-    overlay_copy = back[y:y+rows, x:x+cols]
+    trans_indices = fore[..., 3] != 0  # Where not transparent
+    overlay_copy = back[y:y + rows, x:x + cols]
     print(trans_indices.shape)
     overlay_copy[trans_indices] = fore[trans_indices]
-    back[y:y+rows, x:x+cols] = overlay_copy
+    back[y:y + rows, x:x + cols] = overlay_copy
 
 
 def overlay_image_alpha(img, img_overlay, pos, alpha_mask):
@@ -118,6 +118,7 @@ def edge_detect(image):
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
 
+
 # # find the contours in the edged image, keeping only the
 # # largest ones, and initialize the screen contour
 # cnts = cv2.findContours(edged.copy(), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -162,7 +163,7 @@ def edge_detect(image):
 
 cap = cv2.VideoCapture(0)
 
-while(True):
+while (True):
     # Capture frame-by-frame
     ret, frame = cap.read()
 
@@ -174,14 +175,13 @@ while(True):
 
     edged = edge_detect(frame)
 
-    #find contours
+    # find contours
     screenCnt = contour_detect(edged)
-
 
     edged = cv2.cvtColor(edged, cv2.COLOR_GRAY2RGB)
     edged = imutils.resize(edged, height=250)
 
-    if(screenCnt is not None):
+    if (screenCnt is not None):
         cv2.drawContours(frame, [screenCnt], -1, (0, 255, 0), 2)
 
     add_second_image(frame, edged)
