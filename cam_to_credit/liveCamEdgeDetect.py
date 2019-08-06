@@ -14,19 +14,6 @@ def add_second_image(origin, sec_image):
     # origin[y_offset:y_offset + sec_image.shape[0], x_offset:x_offset + sec_image.shape[1]] = sec_image
     origin[y_offset - sec_image.shape[0]:y_offset, x_offset - sec_image.shape[1]:x_offset] = sec_image
 
-    # Adding Alpha Channels too
-    # y1, y2 = y_offset, y_offset + sec_image.shape[0]
-    # x1, x2 = x_offset, x_offset + sec_image.shape[1]
-    #
-    # alpha_s = sec_image[:, :, 3] / 255.0
-    # alpha_l = 1.0 - alpha_s
-    #
-    # for c in range(0, 3):
-    #     sec_image[y1:y2, x1:x2, c] = (alpha_s * sec_image[:, :, c] +
-    #                               alpha_l * origin[y1:y2, x1:x2, c])
-    #
-    # origin[y_offset:(y_offset + sec_image.shape[0]), x_offset:(x_offset + sec_image.shape[1])] = sec_image
-
 
 def put4ChannelImageOn4ChannelImage(back, fore, x, y):
     rows, cols, channels = fore.shape
@@ -110,13 +97,6 @@ def edge_detect(image):
     edged = cv2.Canny(gray, 75, 200)
 
     return edged
-
-    # # show the original image and the edge detected image
-    # print("STEP 1: Edge Detection")
-    # cv2.imshow("Image", image)
-    # cv2.imshow("Edged", edged)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
 
 
 # # find the contours in the edged image, keeping only the
