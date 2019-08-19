@@ -51,6 +51,37 @@ def edge_detect(image):
 
     return edged
 
+
+def text_area_detect(img):
+    rgb = cv2.pyrDown(img)
+    small = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    grad = cv2.morphologyEx(small, cv2.MORPH_GRADIENT, kernel)
+    
+    _, bw = cv2.threshold(grad, 0.0, 255.0, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 1))
+    connected = cv2.morphologyEx(bw, cv2.MORPH_CLOSE, kernel)
+    # using RETR_EXTERNAL instead of RETR_CCOMP
+    contours, hierarchy = cv2.findContours(connected.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    #For opencv 3+ comment the previous line and uncomment the following line
+    #_, contours, hierarchy = cv2.findContours(connected.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    
+    mask = np.zeros(bw.shape, dtype=np.uint8)
+    
+    for idx in range(len(contours)):
+        x, y, w, h = cv2.boundingRect(contours[idx])
+        mask[y:y+h, x:x+w] = 0
+        cv2.drawContours(mask, contours, idx, (255, 255, 255), -1)
+        r = float(cv2.countNonZero(mask[y:y+h, x:x+w])) / (w * h)
+    
+        if r > 0.45 and w > 8 and h > 8:
+            cv2.rectangle(rgb, (x, y), (x+w-1, y+h-1), (0, 255, 0), 2)
+    
+    cv2.imshow('rects', rgb)
+
+
 """For perspective transformation, you need a 3x3 transformation matrix. Straight lines will remain straight even after the transformation. 
 To find this transformation matrix, you need 4 points on the input image and corresponding points on the output image. 
 Among these 4 points, 3 of them should not be collinear. Then transformation matrix can be found by the function cv2.getPerspectiveTransform. 
@@ -119,6 +150,9 @@ def draw_contour(contour, img):
         M = cv2.getPerspectiveTransform(rect, dst)
         warp = cv2.warpPerspective(frame, M, (maxWidth, maxHeight))
         cv2.imshow('warp', warp)
+        cv2.waitKey()
+
+        text_area_detect(warp)
         cv2.waitKey()
 
         print("========================================================")
