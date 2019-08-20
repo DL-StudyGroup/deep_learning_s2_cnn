@@ -22,30 +22,35 @@ def contour_detect(edge):
     cnts = imutils.grab_contours(cnts)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:5]
     screenCnt = None
+    min_square_size = 0  
 
     # loop over the contours
     for c in cnts:
         # approximate the contour
         peri = cv2.arcLength(c, True)
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        area = cv2.contourArea(c)
+        area = np.int(area)
 
         # if our approximated contour has four points, then we
         # can assume that we have found our screen
-        if len(approx) == 4:
+        if len(approx) == 4 & area > min_square_size:
             screenCnt = approx
+            print(area)
+            #cv2.drawContours(frame, [screenCnt], -1, (0, 255, 0), 2)
+            #cv2.imshow('origin', frame)
+            #cv2.waitKey()
             break
 
     return screenCnt
 
 
 def edge_detect(image):
-    # ratio = image.shape[0] / 500.0
-    # orig = image.copy()
-    # image = imutils.resize(image, height=100)
-
     # convert the image to grayscale, blur it, and find edges
     # in the image
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    #gray = cv2.bilateralFilter(gray, 11, 17, 17)
     gray = cv2.GaussianBlur(gray, (5, 5), 0)
     edged = cv2.Canny(gray, 75, 200)
 
@@ -55,6 +60,8 @@ def edge_detect(image):
 def text_area_detect(img):
     rgb = cv2.pyrDown(img)
     small = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+
+    text_images = []
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     grad = cv2.morphologyEx(small, cv2.MORPH_GRADIENT, kernel)
@@ -78,8 +85,13 @@ def text_area_detect(img):
     
         if r > 0.45 and w > 8 and h > 8:
             cv2.rectangle(rgb, (x, y), (x+w-1, y+h-1), (0, 255, 0), 2)
+            roi = rgb[y:y+h, x:x+w]
+            text_images.append(roi.copy())
     
-    cv2.imshow('rects', rgb)
+    #cv2.imshow('rects', rgb)
+    #cv2.waitKey()
+    
+    return rgb, text_images
 
 
 """For perspective transformation, you need a 3x3 transformation matrix. Straight lines will remain straight even after the transformation. 
@@ -149,30 +161,26 @@ def draw_contour(contour, img):
         # the perspective to grab the screen
         M = cv2.getPerspectiveTransform(rect, dst)
         warp = cv2.warpPerspective(frame, M, (maxWidth, maxHeight))
-        cv2.imshow('warp', warp)
-        cv2.waitKey()
+        #cv2.imshow('warp', warp)
+        #cv2.waitKey()
 
-        text_area_detect(warp)
-        cv2.waitKey()
+        warp , text_images = text_area_detect(warp)
 
         print("========================================================")
 
         images.append(warp.copy())
-    return images
+    return images, text_images
 
 
 # Capture frame-by-frame
-frame = cv2.imread("./images/receipt.jpg") 
+#frame = cv2.imread("./images/receipt.jpg") 
+frame = cv2.imread("./images/vcard.png") 
 frame = imutils.resize(frame, height=500)
-
-# Our operations on the frame come here
-# gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-# gray = cv2.bilateralFilter(gray, 11, 17, 17)
 
 edged = edge_detect(frame)
 
-cv2.imshow('edged', edged)
-cv2.waitKey()
+#cv2.imshow('edged', edged)
+#cv2.waitKey()
 
 # find contours
 screenCnt = contour_detect(edged)
@@ -182,8 +190,20 @@ edged = imutils.resize(edged, height=250)
 
 if (screenCnt is not None):
     #cv2.drawContours(frame, [screenCnt], -1, (0, 255, 0), 2)
-    images = draw_contour(screenCnt, frame)
-    add_second_image(frame, images[0])
+    #cv2.imshow('origin', frame)
+    #cv2.waitKey()
+    images, text_images = draw_contour(screenCnt, frame)
+    if(len(images) > 0):
+        add_second_image(frame, images[0])
+    if(len(text_images) > 0):
+        print(len(text_images))
+        idx = 0
+        for image in text_images:
+            idx += 1
+            print(idx)
+            label = 'texts_' + str(++idx)
+            cv2.imshow(label, image)
+        cv2.waitKey()
 
 # Display the resulting frame
 cv2.imshow('origin', frame)
