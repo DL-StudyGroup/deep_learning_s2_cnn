@@ -1,4 +1,4 @@
-# import the necessary packages
+# import necessary packages
 from pyimagesearch.transform import four_point_transform
 from skimage.filters import threshold_local
 import numpy as np
@@ -10,8 +10,6 @@ import imutils
 def add_second_image(origin, sec_image):
     x_offset = origin.shape[1] - 20
     y_offset = origin.shape[0] - 20
-    # x_offset = y_offset = 20
-    # origin[y_offset:y_offset + sec_image.shape[0], x_offset:x_offset + sec_image.shape[1]] = sec_image
     origin[y_offset - sec_image.shape[0]:y_offset, x_offset - sec_image.shape[1]:x_offset] = sec_image
 
 
@@ -22,7 +20,10 @@ def contour_detect(edge):
     cnts = imutils.grab_contours(cnts)
     cnts = sorted(cnts, key=cv2.contourArea, reverse=True)[:5]
     screenCnt = None
-    min_square_size = 0  
+    h,w = edge.shape[0], edge.shape[1]
+    min_square_size = h * w / 3  
+    print('height: ' + str(h) + ' width = ' + str(w))
+    print('min_square= ' + str(min_square_size))
 
     # loop over the contours
     for c in cnts:
@@ -31,17 +32,21 @@ def contour_detect(edge):
         approx = cv2.approxPolyDP(c, 0.02 * peri, True)
         area = cv2.contourArea(c)
         area = np.int(area)
+        print('contour_detect area = ' + str(area))
+        print('approx = ' + str(len(approx)))
 
         # if our approximated contour has four points, then we
         # can assume that we have found our screen
-        if len(approx) == 4 & area > min_square_size:
+        if len(approx) == 4 and (area > min_square_size):
             screenCnt = approx
             print(area)
-            #cv2.drawContours(frame, [screenCnt], -1, (0, 255, 0), 2)
-            #cv2.imshow('origin', frame)
+            #cv2.drawContours(edge, [screenCnt], -1, (255, 255, 0), 2)
+            #cv2.imshow('origin', edge)
             #cv2.waitKey()
             break
-
+    print('final result: ')
+    print('contour_detect area = ' + str(area))
+    print('approx = ' + str(len(approx)))
     return screenCnt
 
 
@@ -58,10 +63,11 @@ def edge_detect(image):
 
 
 def text_area_detect(img):
-    rgb = cv2.pyrDown(img)
-    small = cv2.cvtColor(rgb, cv2.COLOR_BGR2GRAY)
+    #rgb = cv2.pyrDown(img)
+    #rgb = img
+    small = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    text_images = []
+    locs = []
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     grad = cv2.morphologyEx(small, cv2.MORPH_GRADIENT, kernel)
@@ -79,20 +85,83 @@ def text_area_detect(img):
     
     for idx in range(len(contours)):
         x, y, w, h = cv2.boundingRect(contours[idx])
-        mask[y:y+h, x:x+w] = 0
-        cv2.drawContours(mask, contours, idx, (255, 255, 255), -1)
-        r = float(cv2.countNonZero(mask[y:y+h, x:x+w])) / (w * h)
+        # compute the bounding box of the contour, then use the
+        # bounding box coordinates to derive the aspect ratio
+        ar = w / float(h)
     
-        if r > 0.45 and w > 8 and h > 8:
-            cv2.rectangle(rgb, (x, y), (x+w-1, y+h-1), (0, 255, 0), 2)
-            roi = rgb[y:y+h, x:x+w]
-            text_images.append(roi.copy())
+        # since credit cards used a fixed size fonts with 4 groups
+        # of 4 digits, we can prune potential contours based on the
+        # aspect ratio
+        if ar > 2.5 and ar < 4.0:
+            # contours can further be pruned on minimum/maximum width
+            # and height
+            print(ar)
+            print('w is ' + str(w) + ' and height is ' + str(h))
+            if (w > 90 and w < 100) and (h > 28 and h < 35):
+                locs.append((x, y, w, h))
+                #cv2.rectangle(img, (x, y), (x+w-1, y+h-1), (0, 255, 0), 2)
+                #roi = img[y:y+h, x:x+w]
+                #cv2.imshow(str(idx), roi)
     
-    #cv2.imshow('rects', rgb)
-    #cv2.waitKey()
-    
-    return rgb, text_images
+    return locs 
 
+
+def sort_contours(cnts, method="left-to-right"):
+    # initialize the reverse flag and sort index
+    reverse = False
+    i = 0
+     
+    # handle if we need to sort in reverse
+    if method == "right-to-left" or method == "bottom-to-top":
+        reverse = True
+     
+    # handle if we are sorting against the y-coordinate rather than
+    # the x-coordinate of the bounding box
+    if method == "top-to-bottom" or method == "bottom-to-top":
+        i = 1
+     
+    # construct the list of bounding boxes and sort them from top to
+    # bottom
+    boundingBoxes = [cv2.boundingRect(c) for c in cnts]
+    (cnts, boundingBoxes) = zip(*sorted(zip(cnts, boundingBoxes),
+    key=lambda b:b[1][i], reverse=reverse))
+     
+    # return the list of sorted contours and bounding boxes
+    return (cnts, boundingBoxes)
+
+
+def extract_text_images(gray, locs):
+    # initialize the list of group digits
+    rois = []
+    pad = 5
+    for (i, (gX, gY, gW, gH)) in enumerate(locs):
+        # extract the group ROI of 4 digits from the grayscale image,
+        # then apply thresholding to segment the digits from the
+        # background of the credit card
+        group = gray[gY - 5:gY + gH + 5, gX - 5:gX + gW + 5]
+        #group = cv2.threshold(group, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+        group = cv2.threshold(group, 127, 255, cv2.THRESH_BINARY_INV)[1]
+        
+        # detect the contours of each individual digit in the group,
+        # then sort the digit contours from left to right
+        digitCnts = cv2.findContours(group.copy(), cv2.RETR_EXTERNAL,
+        	cv2.CHAIN_APPROX_SIMPLE)
+        digitCnts = imutils.grab_contours(digitCnts)
+        digitCnts = sort_contours(digitCnts,method="left-to-right")[0]
+        # loop over the digit contours
+        for cnt, c in enumerate(digitCnts):
+            print(cv2.contourArea(c))
+            # compute the bounding box of the individual digit, extract
+            # the digit, and resize it to have the same fixed size as
+            # the reference OCR-A images
+            (x, y, w, h) = cv2.boundingRect(c)
+            roi = group[y - pad :y + h + pad, x - pad:x + w + pad]
+            #cv2.imshow(str(i) + '-' + str(cnt) + '-----.jpg', roi)
+            roi = cv2.resize(roi.copy(), (28, 28))
+            cv2.imshow(str(i) + '-' + str(cnt) + '-----.jpg', roi)
+            rois.append(roi)
+                
+    return rois
 
 """For perspective transformation, you need a 3x3 transformation matrix. Straight lines will remain straight even after the transformation. 
 To find this transformation matrix, you need 4 points on the input image and corresponding points on the output image. 
@@ -105,6 +174,7 @@ def draw_contour(contour, img):
     rect = cv2.minAreaRect(screenCnt)
     # If the contour is not really small, or really big
     h,w = img.shape[0], img.shape[1]
+    print('area == ' + str(area))
     if area > min_square_size and area < h*w-(2*(h+w)):
         # Get the four corners of the contour
         epsilon = .1 * cv2.arcLength(contour, True)
@@ -161,49 +231,56 @@ def draw_contour(contour, img):
         # the perspective to grab the screen
         M = cv2.getPerspectiveTransform(rect, dst)
         warp = cv2.warpPerspective(frame, M, (maxWidth, maxHeight))
+
         #cv2.imshow('warp', warp)
         #cv2.waitKey()
-
-        warp , text_images = text_area_detect(warp)
+        locs = text_area_detect(warp)
 
         print("========================================================")
 
         images.append(warp.copy())
-    return images, text_images
+    return images, locs
 
 
 # Capture frame-by-frame
 #frame = cv2.imread("./images/receipt.jpg") 
 frame = cv2.imread("./images/vcard.png") 
+#frame = cv2.imread("./images/credit.jpg") 
 frame = imutils.resize(frame, height=500)
 
-edged = edge_detect(frame)
+# convert the image to grayscale, blur it, and find edges
+# in the image
+#gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+#gray = cv2.bilateralFilter(gray, 11, 17, 17)
+#edged = cv2.Canny(gray, 0, 200)
+gray = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+gray = cv2.GaussianBlur(gray, (5, 5), 0)
+edged = cv2.Canny(gray, 75, 200)
 
-#cv2.imshow('edged', edged)
-#cv2.waitKey()
+
+cv2.imshow('edged', edged)
+cv2.waitKey()
 
 # find contours
 screenCnt = contour_detect(edged)
 
-edged = cv2.cvtColor(edged, cv2.COLOR_GRAY2RGB)
-edged = imutils.resize(edged, height=250)
 
 if (screenCnt is not None):
-    #cv2.drawContours(frame, [screenCnt], -1, (0, 255, 0), 2)
-    #cv2.imshow('origin', frame)
-    #cv2.waitKey()
-    images, text_images = draw_contour(screenCnt, frame)
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>There is contour...')
+    images, locs = draw_contour(screenCnt, frame)
     if(len(images) > 0):
         add_second_image(frame, images[0])
-    if(len(text_images) > 0):
-        print(len(text_images))
-        idx = 0
-        for image in text_images:
-            idx += 1
-            print(idx)
-            label = 'texts_' + str(++idx)
-            cv2.imshow(label, image)
-        cv2.waitKey()
+        gray = cv2.cvtColor(images[0], cv2.COLOR_BGR2GRAY)
+        if(len(locs) > 0):
+            rois = extract_text_images(gray, locs)
+            if(len(rois) > 0):
+                for i, roi in enumerate(rois):
+                    #h,w = roi.shape[0], roi.shape[1]
+                    #print('height: ' + str(h) + ' width = ' + str(w))
+                    cv2.imshow(str(i) + '.jpg' , roi)
+            cv2.waitKey()
+else:
+    print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>There is no contour...')
 
 # Display the resulting frame
 cv2.imshow('origin', frame)
