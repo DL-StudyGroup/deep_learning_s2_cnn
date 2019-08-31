@@ -3,8 +3,10 @@ from pyimagesearch.transform import four_point_transform
 from skimage.filters import threshold_local
 import numpy as np
 import argparse
+import os, sys
 import cv2
 import imutils
+from hand_writing import pred_matrix
 
 
 def add_second_image(origin, sec_image):
@@ -244,8 +246,9 @@ def draw_contour(contour, img):
 
 # Capture frame-by-frame
 #frame = cv2.imread("./images/receipt.jpg") 
-frame = cv2.imread("./images/credit_1.png")
-# frame = cv2.imread("./images/vcard.png")
+# frame = cv2.imread("./images/credit_1.png")
+# frame = cv2.imread("./images/credit_2.png")
+frame = cv2.imread("./images/vcard.png")
 #frame = cv2.imread("./images/credit.jpg")
 frame = imutils.resize(frame, height=500)
 
@@ -269,6 +272,7 @@ screenCnt = contour_detect(edged)
 if (screenCnt is not None):
     print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>There is contour...')
     images, locs = draw_contour(screenCnt, frame)
+    img_arr = []
     if(len(images) > 0):
         add_second_image(frame, images[0])
         gray = cv2.cvtColor(images[0], cv2.COLOR_BGR2GRAY)
@@ -276,10 +280,12 @@ if (screenCnt is not None):
             rois = extract_text_images(gray, locs)
             if(len(rois) > 0):
                 for i, roi in enumerate(rois):
-                    #h,w = roi.shape[0], roi.shape[1]
-                    #print('height: ' + str(h) + ' width = ' + str(w))
+                    h,w = roi.shape[0], roi.shape[1]
+                    # print('height: ' + str(h) + ' width = ' + str(w))
+                    img_arr.append(pred_matrix(roi , "../hand_writing/param/cnn_params.pkl")[0])
                     cv2.imshow(str(i) + '.jpg' , roi)
             cv2.waitKey()
+            print("img_arr", img_arr)
 else:
     print('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>There is no contour...')
 
