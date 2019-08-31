@@ -244,8 +244,9 @@ def draw_contour(contour, img):
 
 # Capture frame-by-frame
 #frame = cv2.imread("./images/receipt.jpg") 
-frame = cv2.imread("./images/vcard.png") 
-#frame = cv2.imread("./images/credit.jpg") 
+frame = cv2.imread("./images/credit_1.png")
+# frame = cv2.imread("./images/vcard.png")
+#frame = cv2.imread("./images/credit.jpg")
 frame = imutils.resize(frame, height=500)
 
 # convert the image to grayscale, blur it, and find edges
