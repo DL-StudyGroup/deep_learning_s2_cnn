@@ -1,6 +1,7 @@
 # deep-learning-s2-cnn
 >딥러닝 스터디 시즌2
 >
+> -- 현재 휴무상태 --
 CNN 위주인 DeepLearning 그룹스터디
 
 - **방향**: CNN
